@@ -1,5 +1,6 @@
 package cz.maku.dynamical;
 
+import com.google.common.collect.Lists;
 import cz.maku.mommons.ef.Repositories;
 import cz.maku.mommons.ef.repository.Repository;
 import cz.maku.mommons.storage.database.type.MySQL;
@@ -17,11 +18,11 @@ import java.util.logging.Logger;
 @Service(scheduled = true)
 public class ServersService {
 
+    private static Repository<String, ServerModel> repository;
     private final Logger log = Logger.getLogger(DynamicalServers.class.getName());
-    private Repository<String, ServerModel> repository;
-
     @Load
     private TemplatesService templatesService;
+    private List<String> tempCreationStop = Lists.newArrayList();
 
     @Initialize
     public void init() {
@@ -37,12 +38,6 @@ public class ServersService {
                 log.severe("Servers folder was not created.");
                 return;
             }
-        }
-
-        // test
-        for (Template template : templatesService.getTemplates()) {
-            template.identifyRunnableFile();
-            template.copy(template.getFolder() + template.getId());
         }
     }
 
@@ -60,17 +55,37 @@ public class ServersService {
     @Repeat(period = 5000L)
     @Async
     public void serversCreationReceiving() {
+        System.out.println(repository);
         List<ServerModel> serversForCreation = repository.selectFieldValues(Map.of("created", false));
         for (ServerModel serverModel : serversForCreation) {
+            if (tempCreationStop.contains(serverModel.getName())) continue;
+            log.info("Creating server " + serverModel.getName() + "...");
             Optional<Server> optionalServer = fromModel(serverModel);
             if (optionalServer.isEmpty()) {
                 serverModel.setFailure("Failure during deserializing server.");
-                repository.update(serverModel);
+                repository.updateId(serverModel, serverModel.getName());
                 continue;
             }
             Server server = optionalServer.get();
-            // TODO: 17.02.2023 20:05
+            server.init();
+            tempCreationStop.add(serverModel.getName());
+            server.makeAsync().thenAcceptAsync(success -> {
+                if (success) {
+                    serverModel.setFailure(null);
+                    serverModel.setCreated(true);
+                    serverModel.setAddress(server.getAddress());
+                    serverModel.setPort(server.getPort());
+                } else {
+                    serverModel.setFailure("Failure during creating server.");
+                }
+                server.start();
+                repository.updateId(serverModel, serverModel.getName());
+                tempCreationStop.remove(serverModel.getName());
+            });
         }
     }
 
+    public static Repository<String, ServerModel> getRepository() {
+        return repository;
+    }
 }

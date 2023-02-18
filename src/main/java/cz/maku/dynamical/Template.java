@@ -15,7 +15,7 @@ public class Template {
     private final String folder;
     private final Properties configProperties;
     private final File templateFolder;
-    private File runnableFile;
+    private String runnableFile;
 
     public Template(int id, String folder, Properties configProperties) {
         this.id = id;
@@ -50,14 +50,14 @@ public class Template {
     public void identifyRunnableFile() {
         String file = configProperties.getProperty("file");
         if (file != null) {
-            runnableFile = new File(templateFolder + File.separator + file);
+            runnableFile = file;
             return;
         }
         String remoteFileUrl = configProperties.getProperty("remote-file");
         try {
             File target = new File(templateFolder + File.separator + "runnable.jar");
             cz.maku.mommons.utils.Files.download(new URL(remoteFileUrl), target);
-            runnableFile = target;
+            runnableFile = "runnable";
         } catch (IOException e) {
             DynamicalServers.log.severe("Downloading file from " + remoteFileUrl + " was not successful.");
             e.printStackTrace();

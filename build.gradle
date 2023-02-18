@@ -19,7 +19,7 @@ repositories {
 
 dependencies {
     implementation 'cz.maku:mommons-shared:2.0'
-    implementation 'cz.maku:mommons-entityframework:2.0'
+    implementation 'cz.maku:mommons-entityframework:2.0.1.2'
     implementation 'cz.maku:mommons-worker:2.0'
     compileOnly 'org.projectlombok:lombok:1.18.24'
     annotationProcessor 'org.projectlombok:lombok:1.18.24'
